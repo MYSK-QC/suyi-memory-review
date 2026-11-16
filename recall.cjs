@@ -36,7 +36,7 @@ if (!rows.length) {
   const sql = `SELECT id, ts, day, who, text, 0 AS rank FROM msgs m WHERE m.text LIKE ?` + wsql + ` ORDER BY m.ts DESC LIMIT 500`;
   rows = db.prepare(sql).all('%' + q + '%', ...params);
 }
-if (!rows.length) { console.log('(没找到)'); process.exit(0); }
+if (!rows.length) { if (json) { console.log(JSON.stringify({ ok: true, q, since, who, mode, total: 0, count: 0, rows: [] })); } else { console.log('(没找到)'); } process.exit(0); }
 
 function score(r) {
   const ageDays = Math.max(0, (now - r.ts) / 86400000);
