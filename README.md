@@ -82,3 +82,26 @@ node digest.cjs "他刚说的那句话"
 **索引构建的统计**：`build-index.cjs` 现在会报 `decompressFailed` / `invalidJson`，并把失败文件列在 `--- failed files ---` 下面——不再静默吞错。
 
 **total 的语义**：`total` 是这条查询在索引里的真实命中数（上限 500），`count` 是本次按 `--limit` 返回的条数。`digest.cjs` 用 `total` 判断泛词（>60 丢掉），用 `count` 决定显示几条。
+
+## 测试（2026-11-17 加）
+
+```bash
+node test.cjs
+```
+
+不引第三方框架，检查四件事：
+
+1. 零命中时 `--json` 返回合法空结构（`{ok:true,total:0,rows:[]}`），不会打印人类可读文本。
+2. `digest.cjs` 输出合法 JSON。
+3. 泛词被过滤（命中数 > 60 的词不出现在 `used` 里）。
+4. 重复跑 `build-index.cjs` 不会重复插入（total 不变、第二次 `scanned=0`）。
+
+**当前结果：6 passed, 0 failed。**
+
+## 事务（2026-11-17 加）
+
+`build-index.cjs` 现在用 `BEGIN IMMEDIATE` 把「删该会话旧记录 → 重新插入」包成一条事务：
+
+- 删除失败 → `ROLLBACK` 并跳过这个文件（记进 `failures`）。
+- 插入完 → `COMMIT`，成功之后才写 `files` 表的 mtime/size（避免下次误以为已索引）。
+- 中途异常 → 事务回滚，不会留下半份索引。
