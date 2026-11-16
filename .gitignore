@@ -2,3 +2,4 @@ recall.db
 recall.db-*
 *.log
 node_modules/
+.token

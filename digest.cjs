@@ -29,16 +29,21 @@ function extractKeywords(text) {
   return out.slice(0, MAX_KW * 2);
 }
 
+const pad = n => String(n).padStart(2, '0');
+function fmtTs(ts) {
+  const d = new Date(ts);
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function query(kw) {
   try {
-    const raw = execFileSync(process.execPath, [RECALL, kw, '--limit', '4'], {
+    const raw = execFileSync(process.execPath, [RECALL, kw, '--limit', '4', '--json'], {
       encoding: 'utf8', timeout: 8000, windowsHide: true
     });
-    const lines = raw.split('\n').map(s => s.trim());
-    let total = 0;
-    const m = raw.match(/命中\s*(\d+)\s*条/);
-    if (m) total = parseInt(m[1], 10);
-    return { total, lines: lines.filter(s => s.startsWith('[')) };
+    const j = JSON.parse(raw.trim());
+    if (!j || !j.ok) return { total: -1, lines: [] };
+    const lines = j.rows.map(r => `[${fmtTs(r.ts)}] ${r.who}：${r.text}`);
+    return { total: j.count, lines };
   } catch (e) { return { total: -1, lines: [] }; }
 }
 
