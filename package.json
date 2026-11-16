@@ -1,0 +1,13 @@
+{
+  "name": "recall",
+  "version": "1.0.0",
+  "description": "给 QQ 桥加一层「翻旧账」的**只读**检索：他提到旧人/旧事/旧词时，从我过去所有对话里翻出相关原话，列出来再回答。",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
