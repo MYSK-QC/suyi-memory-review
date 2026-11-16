@@ -4,8 +4,8 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const { DatabaseSync } = require('node:sqlite');
 
-const SESS_ROOT = 'C:/Users/DFY/.dsh/sessions';
-const OUT_DIR = 'D:/qq-bridge/state/recall';
+const SESS_ROOT = process.env.RECALL_SESS_ROOT || 'C:/Users/DFY/.dsh/sessions';
+const OUT_DIR = process.env.RECALL_DIR || 'D:/qq-bridge/state/recall';
 const DB_PATH = path.join(OUT_DIR, 'recall.db');
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
@@ -71,13 +71,14 @@ function extractSnapshot(text) {
 }
 
 let files = walk(SESS_ROOT);
-let added = 0, skipped = 0, scanned = 0;
+let added = 0, skipped = 0, scanned = 0, decompressFailed = 0, invalidJson = 0;
+const failures = [];
 for (const f of files) {
   let st; try { st = fs.statSync(f); } catch { continue; }
   const prev = getFile.get(f);
   if (prev && prev.mtime === Math.floor(st.mtimeMs) && prev.size === st.size) { skipped++; continue; }
   let raw;
-  try { raw = zlib.zstdDecompressSync(fs.readFileSync(f)).toString('utf8'); } catch { continue; }
+  try { raw = zlib.zstdDecompressSync(fs.readFileSync(f)).toString('utf8'); } catch (e) { decompressFailed++; failures.push(f + ' :: ' + e.message); continue; }
   scanned++;
   const sid = path.basename(path.dirname(f));
     // 这个文件内容变了：先清掉之前为它建过的记录，避免旧内容残留（一个会话目录对应一个日志文件）
@@ -88,7 +89,7 @@ for (const f of files) {
   let n = 0;
   for (const ln of raw.split('\n')) {
     if (!ln) continue;
-    let o; try { o = JSON.parse(ln); } catch { continue; }
+    let o; try { o = JSON.parse(ln); } catch { invalidJson++; continue; }
     const t = o.type;
     if (t === 'user/message') {
       const base = o.time || Date.now();
@@ -115,6 +116,7 @@ for (const f of files) {
 }
 const c = db.prepare('SELECT COUNT(*) c FROM msgs').get();
 const d = db.prepare("SELECT day, COUNT(*) c FROM msgs GROUP BY day ORDER BY day DESC LIMIT 5").all();
-console.log(`files=${files.length} scanned=${scanned} skipped=${skipped} added=${added} total=${c.c}`);
+console.log(`files=${files.length} scanned=${scanned} skipped=${skipped} added=${added} total=${c.c} decompressFailed=${decompressFailed} invalidJson=${invalidJson}`);
+if (failures.length) { console.log("--- failed files ---"); for (const x of failures) console.log(x); }
 console.log('recent days: ' + d.map(x => `${x.day}:${x.c}`).join(' '));
 db.close();

@@ -62,3 +62,23 @@ node digest.cjs "他刚说的那句话"
   - 试过 nodejieba（真正的中文分词），**Windows 上装不上**：要 Visual Studio 的 C++ 编译环境，本机没有。
   - v3 实测：问「星露谷夏天种什么」能翻出 11-08 我说过的「真正的翻身在夏天种蓝莓」。
   - 仍存在的问题：如果输入里带引用文本（「你上次说的那个」），会把这句引用本身也翻出来——调用方要先把引用段剥掉。
+
+## 配置与开关（2026-11-17 更新）
+
+**路径可配**（环境变量优先，读不到用默认值）：
+
+| 变量 | 作用 | 默认 |
+|---|---|---|
+| `RECALL_SESS_ROOT` | 会话日志目录 | `C:/Users/DFY/.dsh/sessions` |
+| `RECALL_DIR` | 索引输出目录 | `D:/qq-bridge/state/recall` |
+| `RECALL_DB` | 索引数据库文件 | `D:/qq-bridge/state/recall/recall.db` |
+
+**命令行开关**：
+
+- `recall.cjs ... --json` 输出固定 JSON（`{ok, q, since, who, mode, total, count, rows}`）；零命中时也返回空结构，不会打印文本。
+- `recall.cjs ... --no-hit` 纯净只读模式：不更新 `access` 表的访问计数（默认会更新，用来给常被翻到的旧话加权）。
+- `digest.cjs "一句话"` 输出 JSON：`{ok, used:[{kw,total}], count, hits:[{line,kws}]}`。
+
+**索引构建的统计**：`build-index.cjs` 现在会报 `decompressFailed` / `invalidJson`，并把失败文件列在 `--- failed files ---` 下面——不再静默吞错。
+
+**total 的语义**：`total` 是这条查询在索引里的真实命中数（上限 500），`count` 是本次按 `--limit` 返回的条数。`digest.cjs` 用 `total` 判断泛词（>60 丢掉），用 `count` 决定显示几条。

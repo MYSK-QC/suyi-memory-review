@@ -1,8 +1,8 @@
 const { DatabaseSync } = require('node:sqlite');
-const DB = 'D:/qq-bridge/state/recall/recall.db';
+const DB = process.env.RECALL_DB || 'D:/qq-bridge/state/recall/recall.db';
 const args = process.argv.slice(2);
 if (!args.length) { console.log('usage: node recall.cjs <关键词> [--since YYYY-MM-DD] [--who 他|鱼] [--limit N] [--around] [--raw]'); process.exit(1); }
-let q = null, since = null, who = null, limit = 15, around = false, raw = false, json = false;
+let q = null, since = null, who = null, limit = 15, around = false, raw = false, json = false, noHit = false;
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if (a === '--since') since = args[++i];
@@ -11,6 +11,7 @@ for (let i = 0; i < args.length; i++) {
   else if (a === '--around') around = true;
   else if (a === '--raw') raw = true;
   else if (a === '--json') json = true;
+  else if (a === '--no-hit') noHit = true;
   else if (q === null) q = a;
 }
 const db = new DatabaseSync(DB);
@@ -56,7 +57,7 @@ if (json) {
   const out = rows.map(r => ({ ts: r.ts, day: r.day, who: r.who, text: clean(r.text).slice(0, 300), hits: (hitsMap.get(r.id) || { hits: 0 }).hits }));
   console.log(JSON.stringify({ ok: true, q, since, who, mode, total, count: out.length, rows: out }, null, 0));
   const bump2 = db.prepare('INSERT INTO access(id, hits, last_hit) VALUES(?, 1, ?) ON CONFLICT(id) DO UPDATE SET hits = hits + 1, last_hit = excluded.last_hit');
-  for (const r of rows) { try { bump2.run(r.id, now); } catch (e) {} }
+  if (!noHit) { for (const r of rows) { try { bump2.run(r.id, now); } catch (e) {} } }
   db.close();
   process.exit(0);
 }
@@ -66,7 +67,7 @@ for (const r of rows) {
   console.log(`[${fmt(r.ts)}]${hits ? '·' + hits : ''} ${r.who}：${clean(r.text).slice(0, 220)}`);
 }
 const bump = db.prepare('INSERT INTO access(id, hits, last_hit) VALUES(?, 1, ?) ON CONFLICT(id) DO UPDATE SET hits = hits + 1, last_hit = excluded.last_hit');
-for (const r of rows) { try { bump.run(r.id, now); } catch (e) {} }
+if (!noHit) { for (const r of rows) { try { bump.run(r.id, now); } catch (e) {} } }
 if (around) {
   const top = rows[0];
   console.log('\n—— 那一条的上下文 ——');
