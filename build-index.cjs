@@ -80,6 +80,11 @@ for (const f of files) {
   try { raw = zlib.zstdDecompressSync(fs.readFileSync(f)).toString('utf8'); } catch { continue; }
   scanned++;
   const sid = path.basename(path.dirname(f));
+    // 这个文件内容变了：先清掉之前为它建过的记录，避免旧内容残留（一个会话目录对应一个日志文件）
+    try {
+      db.prepare('DELETE FROM fts WHERE rowid IN (SELECT id FROM msgs WHERE sid=?)').run(sid);
+      db.prepare('DELETE FROM msgs WHERE sid=?').run(sid);
+    } catch { }
   let n = 0;
   for (const ln of raw.split('\n')) {
     if (!ln) continue;

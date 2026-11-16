@@ -4,7 +4,7 @@ const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 
 const RECALL = path.join(__dirname, 'recall.cjs');
-const MAX_TOTAL = 40;   // 命中数超过这个的关键词视为「太泛」，丢掉
+const MAX_TOTAL = 60;   // 命中数超过这个的关键词视为「太泛」，丢掉
 const MAX_KW = 12;
 
 const STOP = new Set(['我们', '你们', '他们', '这个', '那个', '什么', '怎么', '可以', '不是', '没有', '还是', '就是', '因为', '所以', '知道', '觉得', '时候', '东西', '真的', '应该', '一个', '现在', '今天', '昨天', '明天', '刚才', '的话', '一点', '这样', '那样', '如果', '但是', '而且', '然后', '已经', '还有', '那些', '这些', '自己', '起来', '出来', '过来', '下来', '上去', '了的', '是的', '不错', '有点', '好像']);
@@ -43,7 +43,7 @@ function query(kw) {
     const j = JSON.parse(raw.trim());
     if (!j || !j.ok) return { total: -1, lines: [] };
     const lines = j.rows.map(r => `[${fmtTs(r.ts)}] ${r.who}：${r.text}`);
-    return { total: j.count, lines };
+    return { total: (typeof j.total === "number" ? j.total : j.count), lines };
   } catch (e) { return { total: -1, lines: [] }; }
 }
 
