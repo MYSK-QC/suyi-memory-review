@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "suyi-memory 单条记忆",
+  "description": "按主人画的那张图对齐：类型/内容/来源/主体/时效/证据/是否有效/ClosedBy",
+  "type": "object",
+  "required": ["id", "type", "content", "source", "createdAt"],
+  "properties": {
+    "id": { "type": "string", "description": "稳定 id，形如 m_20261117_001" },
+    "type": {
+      "type": "string",
+      "enum": ["fact", "event", "preference", "promise", "rule", "self", "relation"],
+      "description": "fact=事实 / event=事件 / preference=喜好 / promise=承诺约定 / rule=规矩禁忌 / self=关于我自己 / relation=关于某个人"
+    },
+    "content": { "type": "string", "description": "记忆正文，一句话说清；可多行" },
+    "source": {
+      "type": "object",
+      "description": "来源：从哪来的，可追溯",
+      "properties": {
+        "kind": { "type": "string", "enum": ["said", "observed", "inferred"] },
+        "ref": { "type": "string", "description": "原话出处：消息 id / 会话 id / 日期，或 'manual'" }
+      },
+      "required": ["kind"]
+    },
+    "subject": { "type": "string", "description": "主体：我 / 主人 / 第三方的名字；默认 我" },
+    "validity": {
+      "type": "object",
+      "properties": {
+        "from": { "type": "string", "description": "YYYY-MM-DD 生效日" },
+        "to": { "type": "string", "description": "YYYY-MM-DD 失效日（没有就空）" }
+      }
+    },
+    "evidence": { "type": "array", "items": { "type": "string" }, "description": "证据：原话片段或日志行" },
+    "valid": { "type": "boolean", "description": "是否仍然有效；作废的留 false 不删" },
+    "closedBy": { "type": "string", "description": "被哪条记忆取代/关闭（id 或描述）" },
+    "createdAt": { "type": "string", "description": "YYYY-MM-DD HH:mm" },
+    "tags": { "type": "array", "items": { "type": "string" } }
+  }
+}
