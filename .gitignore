@@ -6,3 +6,7 @@ node_modules/
 memory.jsonl
 memory.jsonl.lock
 *.tmp
+*.bak-pre-gpt-*
+gpt-*.cjs
+_gpt_reply.txt
+_extract.cjs
