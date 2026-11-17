@@ -45,7 +45,9 @@ function query(kw) {
     const j = JSON.parse(raw.trim());
     if (!j || !j.ok) return { total: -1, lines: [] };
     const lines = j.rows.map(r => `[${fmtTs(r.ts)}] ${r.who}：${r.text}`);
-    return { total: (typeof j.total === "number" ? j.total : j.count), lines };
+    const total = (typeof j.total === 'number') ? j.total : j.count;
+    if (!Array.isArray(j.rows) || !Number.isSafeInteger(total) || total < 0) throw new Error('recall 返回结构异常');
+    return { total, lines };
   } catch (e) { return { total: -1, lines: [] }; }
 }
 
@@ -74,7 +76,7 @@ function main() {
   const list = [...hits.values()].sort((a, b) => b.kws.length - a.kws.length).slice(0, 5)
     .map(h => ({ line: h.line.length > 200 ? h.line.slice(0, 200) + '…' : h.line, kws: h.kws }));
   // 失败兜底：全部查询都挂了就明说，别假装「没找到」（桥那边要能区分「没结果」和「坏了」）
-  if (failed > 0 && used.length === 0 && kws.length > 0) {
+  if (kws.length > 0 && failed === kws.length) {
     console.log(JSON.stringify({ ok: false, error: 'all_queries_failed', failed, tried: kws.length }));
     return;
   }
