@@ -3,3 +3,6 @@ recall.db-*
 *.log
 node_modules/
 .token
+memory.jsonl
+memory.jsonl.lock
+*.tmp
