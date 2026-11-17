@@ -12,7 +12,7 @@ const TYPES = new Set(['fact', 'event', 'preference', 'promise', 'rule', 'self',
 const KINDS = new Set(['said', 'observed', 'inferred']);
 const WEIGHTS = { rule: 1.6, promise: 1.6, self: 1.3, preference: 1.3 };
 const DAY = 86_400_000;
-const THRESHOLD = 0.08;  // 原 0.25 太激进（约 1.4 天就够格），调到 0.08（约 5 天）
+const THRESHOLD = 0.05;  // 原 0.25 约 1.4 天就够格，太激进；0.05 约 3 天
 const DEFAULT_FILE = process.env.MEMORY_FILE || path.join(__dirname, 'memory.jsonl');
 const error = (...errors) => ({ ok: false, errors });
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -145,7 +145,7 @@ function createStore(filename = DEFAULT_FILE, clock = Date.now) {
     return transaction(rows => {
       const now = clock();
       const hits = rows.filter(m => active(m, now)).map(m => {
-        const content = normalize(m.content);
+        const content = normalize(m.content + ' ' + (m.originalContent || ''));  // 压缩过的原文也要能搜到
         const keywordHits = terms.filter(k => content.includes(k)).length;
         return { m, keywordHits, score: keywordHits * (WEIGHTS[m.type] ?? 1) * recency(m, now) };
       }).filter(h => h.keywordHits > 0)
@@ -196,7 +196,8 @@ function createStore(filename = DEFAULT_FILE, clock = Date.now) {
     for (const m of rows) byType[m.type]++;
     return { ok: true, total: rows.length, active: rows.filter(m => active(m, now)).length,
       compressed: rows.filter(m => m.compressed).length,
-      needsCompression: rows.filter(m => !m.compressed && decay(m, now) < THRESHOLD).length,
+      needsCompression: rows.filter(m => !m.compressed && m.type !== 'rule' && m.type !== 'promise' && decay(m, now) < THRESHOLD).length,
+      exempt: rows.filter(m => m.type === 'rule' || m.type === 'promise').length,
       totalRecalls: rows.reduce((sum, m) => sum + m.accessCount, 0), byType };
   }
 
