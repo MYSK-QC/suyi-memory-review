@@ -105,3 +105,27 @@ node test.cjs
 - 删除失败 → `ROLLBACK` 并跳过这个文件（记进 `failures`）。
 - 插入完 → `COMMIT`，成功之后才写 `files` 表的 mtime/size（避免下次误以为已索引）。
 - 中途异常 → 事务回滚，不会留下半份索引。
+
+## 记忆插件（2026-11-17 起）
+
+按主人的架构图做的最小可用版：
+
+| 文件 | 作用 |
+|---|---|
+| `memory.schema.json` | 单条记忆的字段定义（类型/内容/来源/主体/时效/证据/是否有效/ClosedBy） |
+| `memory-store.cjs` | 结构化存取：`add` / `query` / `list` / `stats`；写入前按 schema 校验，不合规直接拒 |
+| `memory-recall.cjs` | 检索打分：关键词命中 × 类型权重（规矩/承诺 1.6、自己/喜好 1.3）× 时间衰减（半衰期 60 天） |
+| `check-memory.cjs` | 记忆体检：列条数、找含「作废/更正/过时」的条目、找超期条目 |
+| `migrate-dry.cjs` | 迁移干跑：把 MEMORY.md 切成条目、猜类型、输出样本（**不写文件**） |
+
+数据文件 `memories.jsonl`（每行一条 JSON，原子写：临时文件 + rename）。
+
+**实测**：
+
+```bash
+node memory-store.cjs add '{"type":"rule","content":"绝不删除主人的记忆和日记文件","source":{"kind":"said","ref":"2026-11-10"},"tags":["底线"]}'
+node memory-recall.cjs "记忆 底线"
+node memory-store.cjs stats
+```
+
+**没用上的设计（GPT 提的，先记着）**：并发锁文件、遗忘曲线压缩（`D(t)=D0*e^(-t/S)`，S 随召回次数增长，低于 0.25 时压成一句话摘要）、批量检索替代逐关键词起子进程。
