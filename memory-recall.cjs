@@ -5,6 +5,10 @@ const STORE = createStore();
 
 function recall(q, limit = 10) {
   const r = STORE.query(q, limit);
+  // 别把 query 的错误吞成空结果（GPT 回验指出的隐患）
+  if (!r || r.ok === false) {
+    throw new Error(((r && r.errors) || ['query failed']).join('; '));
+  }
   return (r.hits || []).map(h => ({
     id: h.id,
     type: h.type,
