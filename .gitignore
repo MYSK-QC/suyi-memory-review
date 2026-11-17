@@ -10,3 +10,5 @@ memory.jsonl.lock
 gpt-*.cjs
 _gpt_reply.txt
 _extract.cjs
+gpt-migrate*.cjs
+_gpt_reply2.txt
