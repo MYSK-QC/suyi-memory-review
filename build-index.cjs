@@ -84,37 +84,43 @@ for (const f of files) {
   // 这个文件内容变了：先清旧记录再重建，事务包住，删失败就回滚跳过
   db.exec('BEGIN IMMEDIATE');
   try {
-    db.prepare('DELETE FROM fts WHERE rowid IN (SELECT id FROM msgs WHERE sid=?)').run(sid);
-    db.prepare('DELETE FROM msgs WHERE sid=?').run(sid);
-  } catch (e) { try { db.exec('ROLLBACK'); } catch { } failures.push(f + ' :: cleanup failed: ' + e.message); continue; }
-  let n = 0;
-  for (const ln of raw.split('\n')) {
-    if (!ln) continue;
-    let o; try { o = JSON.parse(ln); } catch { invalidJson++; continue; }
-    const t = o.type;
-    if (t === 'user/message') {
-      const base = o.time || Date.now();
-      for (const c of ((o.data && o.data.content) || [])) {
-        if (c.type !== 'text' || !c.text) continue;
-        for (const s of extractSnapshot(c.text)) {
-          const ts = resolveAt(s.at, base);
-          const uniq = `u:${sid}:${s.mid || ts}`;
-          const r = insMsg.run(ts, dayOf(ts), '他', s.text, sid, uniq);
-          if (r.changes) { insFts.run(r.lastInsertRowid, s.text); added++; n++; }
+    try {
+      db.prepare('DELETE FROM fts WHERE rowid IN (SELECT id FROM msgs WHERE sid=?)').run(sid);
+      db.prepare('DELETE FROM msgs WHERE sid=?').run(sid);
+    } catch (e) { try { db.exec('ROLLBACK'); } catch { } failures.push(f + ' :: cleanup failed: ' + e.message); continue; }
+    let n = 0;
+    for (const ln of raw.split('\n')) {
+      if (!ln) continue;
+      let o; try { o = JSON.parse(ln); } catch { invalidJson++; continue; }
+      const t = o.type;
+      if (t === 'user/message') {
+        const base = o.time || Date.now();
+        for (const c of ((o.data && o.data.content) || [])) {
+          if (c.type !== 'text' || !c.text) continue;
+          for (const s of extractSnapshot(c.text)) {
+            const ts = resolveAt(s.at, base);
+            const uniq = `u:${sid}:${s.mid || ts}`;
+            const r = insMsg.run(ts, dayOf(ts), '他', s.text, sid, uniq);
+            if (r.changes) { insFts.run(r.lastInsertRowid, s.text); added++; n++; }
+          }
         }
+      } else if (t === 'assistant/message') {
+        const base = o.time || Date.now();
+        const msg = (o.data && o.data.message) || {};
+        const txt = ((msg.content) || []).filter(c => c.type === 'text' && c.text).map(c => c.text).join('\n').trim();
+        if (!txt) continue;
+        const uniq = `a:${sid}:${o.seq}`;
+        const r = insMsg.run(base, dayOf(base), '鱼', txt, sid, uniq);
+        if (r.changes) { insFts.run(r.lastInsertRowid, txt); added++; n++; }
       }
-    } else if (t === 'assistant/message') {
-      const base = o.time || Date.now();
-      const msg = (o.data && o.data.message) || {};
-      const txt = ((msg.content) || []).filter(c => c.type === 'text' && c.text).map(c => c.text).join('\n').trim();
-      if (!txt) continue;
-      const uniq = `a:${sid}:${o.seq}`;
-      const r = insMsg.run(base, dayOf(base), '鱼', txt, sid, uniq);
-      if (r.changes) { insFts.run(r.lastInsertRowid, txt); added++; n++; }
     }
+    setFile.run(f, Math.floor(st.mtimeMs), st.size, n);
+    db.exec('COMMIT');
+  } catch (e) {
+    try { db.exec('ROLLBACK'); } catch { }
+    failures.push(f + ' :: ' + e.message);
+    continue;
   }
-  db.exec('COMMIT');
-  setFile.run(f, Math.floor(st.mtimeMs), st.size, n);
 }
 const c = db.prepare('SELECT COUNT(*) c FROM msgs').get();
 const d = db.prepare("SELECT day, COUNT(*) c FROM msgs GROUP BY day ORDER BY day DESC LIMIT 5").all();
