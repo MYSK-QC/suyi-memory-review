@@ -129,3 +129,10 @@ node memory-store.cjs stats
 ```
 
 **没用上的设计（GPT 提的，先记着）**：并发锁文件、遗忘曲线压缩（`D(t)=D0*e^(-t/S)`，S 随召回次数增长，低于 0.25 时压成一句话摘要）、批量检索替代逐关键词起子进程。
+
+## 2026-11-17 合并与修正（按 GPT 审查第 1/3/4 条）
+
+- **存储合并成一套**：删掉 `memory-store.cjs`，`memory-recall.cjs` 改用 `memory.cjs` 的 `createStore`。以前两套 JSONL + 两套校验，现在只有一套。
+- **探测不再污染计数**：`digest.cjs` 调 `recall.cjs` 时带 `--no-hit`，被丢弃的结果不会增加召回计数。
+- **压缩可逆 + 豁免**：压缩时把原文存进 `originalContent`；`rule`（规矩）和 `promise`（承诺）永不压缩；阈值 0.25 → 0.08（原来约 1.4 天就够格，现在约 5 天）。
+- **待做（要动结构，等主人在家）**：`build-index.cjs` 加 `source_file` 列按文件删（而不是按 sid）；批量检索替代逐关键词起子进程。

@@ -1,6 +1,8 @@
 // 记忆检索：node memory-recall.cjs "关键词" [--limit N]
 // 打分 = 内容命中 + 标签命中 + 类型权重 + 时间衰减
-const { load } = require('./memory-store.cjs');
+const { createStore } = require('./memory.cjs');
+const STORE = createStore();
+const load = () => STORE.read();
 
 const HALF_LIFE_DAYS = 60;
 
