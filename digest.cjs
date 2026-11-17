@@ -39,7 +39,8 @@ function fmtTs(ts) {
 
 function query(kw) {
   try {
-    const raw = execFileSync(process.execPath, [RECALL, kw, '--limit', '4', '--json'], {
+    // 探测用 --no-hit：被丢弃的结果不该污染召回计数（GPT 审查第 3 条）
+    const raw = execFileSync(process.execPath, [RECALL, kw, '--limit', '4', '--json', '--no-hit'], {
       encoding: 'utf8', timeout: 8000, windowsHide: true
     });
     const j = JSON.parse(raw.trim());

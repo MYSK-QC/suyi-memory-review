@@ -12,7 +12,7 @@ const TYPES = new Set(['fact', 'event', 'preference', 'promise', 'rule', 'self',
 const KINDS = new Set(['said', 'observed', 'inferred']);
 const WEIGHTS = { rule: 1.6, promise: 1.6, self: 1.3, preference: 1.3 };
 const DAY = 86_400_000;
-const THRESHOLD = 0.25;
+const THRESHOLD = 0.08;  // 原 0.25 太激进（约 1.4 天就够格），调到 0.08（约 5 天）
 const DEFAULT_FILE = process.env.MEMORY_FILE || path.join(__dirname, 'memory.jsonl');
 const error = (...errors) => ({ ok: false, errors });
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -170,12 +170,15 @@ function createStore(filename = DEFAULT_FILE, clock = Date.now) {
   function review(apply = false) {
     function inspect(rows) {
       const now = clock();
-      const due = rows.filter(m => !m.compressed && decay(m, now) < THRESHOLD)
+      // 规矩和承诺不参与压缩（GPT 审查第 4 条：它们不能变成一句话摘要）
+      const due = rows.filter(m => !m.compressed && m.type !== 'rule' && m.type !== 'promise' && decay(m, now) < THRESHOLD)
         .map(m => ({ id: m.id, type: m.type, content: m.content, decay: decay(m, now),
           strength: strength(m), needsCompression: true, suggestedSummary: summarize(m.content) }));
       if (apply && due.length) {
         const summaries = new Map(due.map(m => [m.id, m.suggestedSummary]));
         for (const m of rows) if (summaries.has(m.id)) {
+          // 压缩可逆：原文留在 originalContent 里，随时能展开（GPT 审查第 4 条）
+          if (!m.originalContent) m.originalContent = m.content;
           m.content = summaries.get(m.id);
           m.compressed = true;
         }
